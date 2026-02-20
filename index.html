@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk RSS Pinger (Standard + RPC)</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #0056b3; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        textarea { height: 100px; resize: vertical; }
+        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #218838; }
+        #logBox { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 14px; }
+        .log-rpc { color: #856404; } /* Brown for RPC */
+        .log-std { color: #004085; } /* Blue for Standard */
+        .log-error { color: #721c24; } /* Red for Error */
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Bulk RSS Pinger (Standard + RPC)</h2>
+    
+    <div class="input-group">
+        <label for="urls">Bulk URLs to Ping (One per line)</label>
+        <textarea id="urls" placeholder="http://example.com/post-1..."></textarea>
+    </div>
+
+    <div class="input-group">
+        <label for="keywords">Keywords (One per line)</label>
+        <textarea id="keywords" placeholder="Flight deals..."></textarea>
+    </div>
+
+    <div class="input-group">
+        <label for="rssSites">RSS Submission Links (Standard & RPC - One per line)</label>
+        <textarea id="rssSites" placeholder="http://pingomatic.com/ping/&#10;http://rpc.pingomatic.com/"></textarea>
+    </div>
+
+    <div class="input-group">
+        <label for="category">Category</label>
+        <select id="category">
+            <option value="Travel">Travel</option>
+            <option value="News">News</option>
+            <option value="Education">Education</option>
+            <option value="Aviation">Aviation</option>
+        </select>
+    </div>
+
+    <button onclick="startPinging()" id="pingBtn">Start Pinging</button>
+
+    <div id="logBox">System ready. Waiting to ping...</div>
+</div>
+
+<script>
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function startPinging() {
+        const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
+        const keywords = document.getElementById('keywords').value.split('\n').filter(k => k.trim() !== '');
+        const rssSites = document.getElementById('rssSites').value.split('\n').filter(r => r.trim() !== '');
+        const category = document.getElementById('category').value;
+        const logBox = document.getElementById('logBox');
+        const btn = document.getElementById('pingBtn');
+
+        if (urls.length === 0 || rssSites.length === 0) {
+            alert("Please provide at least one URL and one RSS submission site.");
+            return;
+        }
+
+        logBox.innerHTML = '<strong>Process Started...</strong><br>';
+        btn.disabled = true;
+        btn.innerText = "Pinging in progress...";
+
+        for (let url of urls) {
+            const keyword = keywords.length > 0 ? keywords[Math.floor(Math.random() * keywords.length)] : "Ping";
+
+            for (let site of rssSites) {
+                let siteUrl = site.trim();
+                let cleanUrl = url.trim();
+                let cleanKeyword = keyword.trim();
+
+                try {
+                    // Detect if the submission URL is likely an RPC endpoint
+                    if (siteUrl.toLowerCase().includes('rpc') || siteUrl.toLowerCase().includes('xml')) {
+                        
+                        // Construct XML-RPC Payload (weblogUpdates.ping standard)
+                        const xmlPayload = `<?xml version="1.0"?>
+<methodCall>
+  <methodName>weblogUpdates.ping</methodName>
+  <params>
+    <param><value>${cleanKeyword}</value></param>
+    <param><value>${cleanUrl}</value></param>
+  </params>
+</methodCall>`;
+
+                        // Send POST request for RPC
+                        await fetch(siteUrl, { 
+                            method: 'POST',
+                            mode: 'no-cors', 
+                            headers: { 'Content-Type': 'text/plain' }, // text/plain prevents CORS preflight block
+                            body: xmlPayload
+                        });
+                        
+                        logBox.innerHTML += `<span class="log-rpc">✅ RPC Ping Sent to: ${siteUrl}</span><br>`;
+
+                    } else {
+                        // Send GET request for Standard URLs
+                        const targetUrl = `${siteUrl}?title=${encodeURIComponent(cleanKeyword)}&url=${encodeURIComponent(cleanUrl)}&category=${encodeURIComponent(category)}`;
+                        
+                        await fetch(targetUrl, { mode: 'no-cors' });
+                        logBox.innerHTML += `<span class="log-std">✅ Standard Ping Sent to: ${siteUrl}</span><br>`;
+                    }
+
+                } catch (error) {
+                    logBox.innerHTML += `<span class="log-error">❌ Failed to ping: ${siteUrl} - ${error.message}</span><br>`;
+                }
+                
+                logBox.scrollTop = logBox.scrollHeight;
+                await sleep(500); // 500ms throttle
+            }
+        }
+
+        logBox.innerHTML += '<br><strong>All Pings Completed!</strong>';
+        btn.disabled = false;
+        btn.innerText = "Start Pinging";
+    }
+</script>
+
+</body>
+</html>
