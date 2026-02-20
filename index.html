@@ -3,130 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bulk RSS Pinger (Standard + RPC)</title>
+    <title>Advanced Bulk RSS Pinger</title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #0056b3; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: #1a73e8; margin-top: 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .input-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        textarea { height: 100px; resize: vertical; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
-        button:hover { background-color: #218838; }
-        #logBox { margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px; max-height: 250px; overflow-y: auto; font-family: monospace; font-size: 14px; }
-        .log-rpc { color: #856404; } /* Brown for RPC */
-        .log-std { color: #004085; } /* Blue for Standard */
-        .log-error { color: #721c24; } /* Red for Error */
+        .input-group.full-width { grid-column: span 2; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: #555; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; font-family: monospace; font-size: 13px; }
+        textarea { height: 120px; resize: vertical; }
+        button { background-color: #1a73e8; color: white; border: none; padding: 12px 20px; font-size: 15px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background-color: #1557b0; }
+        button:disabled { background-color: #a0c4ff; cursor: not-allowed; }
+        .btn-secondary { background-color: #6c757d; font-size: 12px; padding: 6px 12px; margin-top: 5px; width: auto; display: inline-block; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .btn-success { background-color: #10b981; width: 100%; grid-column: span 2; padding: 15px; font-size: 16px; margin-top: 10px; }
+        .btn-success:hover { background-color: #059669; }
+        
+        /* New Checkbox Styling */
+        .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; padding: 12px; background: #f8f9fa; border: 1px solid #d1d5db; border-radius: 6px; }
+        .checkbox-group label { display: inline-flex; align-items: center; font-weight: normal; margin-bottom: 0; cursor: pointer; }
+        .checkbox-group input[type="checkbox"] { width: auto; margin-right: 6px; cursor: pointer; transform: scale(1.1); }
+        
+        #progressContainer { width: 100%; background-color: #e5e7eb; border-radius: 4px; margin-top: 20px; display: none; overflow: hidden; }
+        #progressBar { height: 20px; background-color: #10b981; width: 0%; transition: width 0.3s; }
+        #progressText { text-align: center; font-size: 12px; font-weight: bold; margin-top: 5px; display: none; }
+        
+        #logBox { margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 13px; line-height: 1.5; }
+        .log-rpc { color: #b45309; } 
+        .log-std { color: #1d4ed8; } 
+        .log-error { color: #b91c1c; } 
+        .log-header { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Bulk RSS Pinger (Standard + RPC)</h2>
+    <h2>Advanced Bulk RSS Pinger</h2>
     
-    <div class="input-group">
-        <label for="urls">Bulk URLs to Ping (One per line)</label>
-        <textarea id="urls" placeholder="http://example.com/post-1..."></textarea>
+    <div class="grid">
+        <div class="input-group">
+            <label for="urls">Bulk URLs to Ping (One per line)</label>
+            <textarea id="urls" placeholder="http://yoursite.com/post-1..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label for="keywords">Keywords (One per line)</label>
+            <textarea id="keywords" placeholder="Flight deals..."></textarea>
+        </div>
+
+        <div class="input-group full-width">
+            <label for="rssSites">
+                RSS Submission Links 
+                <button type="button" class="btn-secondary" style="float: right; margin-left: 10px;" onclick="scrubDeadLinks()">🧹 Scrub Dead Links</button>
+                <button type="button" class="btn-secondary" style="float: right;" onclick="autoFillSites()">⚡ Auto-Fill Safe Sites</button>
+            </label>
+            <textarea id="rssSites" placeholder="Paste your massive list here..."></textarea>
+        </div>
+
+        <div class="input-group full-width">
+            <label>Categories (Select one or more)</label>
+            <div class="checkbox-group" id="categoryCheckboxes">
+                <label><input type="checkbox" value="Travel" checked> Travel</label>
+                <label><input type="checkbox" value="News"> News</label>
+                <label><input type="checkbox" value="Education"> Education</label>
+                <label><input type="checkbox" value="Aviation"> Aviation</label>
+            </div>
+        </div>
+
+        <button onclick="startPinging()" id="pingBtn" class="btn-success">🚀 Start Bulk Pinging</button>
     </div>
 
-    <div class="input-group">
-        <label for="keywords">Keywords (One per line)</label>
-        <textarea id="keywords" placeholder="Flight deals..."></textarea>
+    <div id="progressContainer"><div id="progressBar"></div></div>
+    <div id="progressText">0 / 0 Completed</div>
+
+    <div class="log-header">
+        <label style="margin:0;">System Log</label>
+        <button type="button" class="btn-secondary" onclick="exportLog()">💾 Export Log to TXT</button>
     </div>
-
-    <div class="input-group">
-        <label for="rssSites">RSS Submission Links (Standard & RPC - One per line)</label>
-        <textarea id="rssSites" placeholder="http://pingomatic.com/ping/&#10;http://rpc.pingomatic.com/"></textarea>
-    </div>
-
-    <div class="input-group">
-        <label for="category">Category</label>
-        <select id="category">
-            <option value="Travel">Travel</option>
-            <option value="News">News</option>
-            <option value="Education">Education</option>
-            <option value="Aviation">Aviation</option>
-        </select>
-    </div>
-
-    <button onclick="startPinging()" id="pingBtn">Start Pinging</button>
-
-    <div id="logBox">System ready. Waiting to ping...</div>
+    <div id="logBox">System ready. Paste your lists and click Start.</div>
 </div>
 
 <script>
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    let logHistory = []; 
+
+    const safeSites = [
+        "http://rpc.pingomatic.com/", "http://rpc.twingly.com/", "http://ping.blo.gs/", 
+        "http://ping.weblogalot.com/rpc.php", "http://rpc.blogrolling.com/pinger/", "http://ping.syndic8.com/xmlrpc.php"
+    ];
+
+    function autoFillSites() {
+        document.getElementById('rssSites').value = safeSites.join('\n');
+        addToLog("✅ Safe sites auto-filled.");
+    }
+
+    function scrubDeadLinks() {
+        const rssBox = document.getElementById('rssSites');
+        let sites = rssBox.value.split('\n');
+        
+        const deadPatterns = /google\.|yahoo\.|feedburner\.|technorati\.|feedster\.|bloglines\.|icerocket\.|blo\.gs\/ping\.php|weblogs\.com/i;
+        
+        let cleaned = sites.filter(site => {
+            let s = site.trim();
+            if (s === '') return false;
+            if (deadPatterns.test(s)) return false; 
+            return true;
+        });
+
+        rssBox.value = cleaned.join('\n');
+        let removedCount = sites.length - cleaned.length;
+        addToLog(`🧹 Scrubbed ${removedCount} dead or empty links from the list.`);
+    }
+
+    function addToLog(htmlMsg, plainMsg = null) {
+        const logBox = document.getElementById('logBox');
+        logBox.innerHTML += htmlMsg + '<br>';
+        logBox.scrollTop = logBox.scrollHeight;
+        logHistory.push(plainMsg || htmlMsg.replace(/<[^>]*>?/gm, '')); 
+    }
+
+    function exportLog() {
+        if (logHistory.length === 0) return alert("No logs to export yet.");
+        const blob = new Blob([logHistory.join('\n')], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Ping_Log_${new Date().toISOString().slice(0,10)}.txt`;
+        link.click();
+    }
 
     async function startPinging() {
         const urls = document.getElementById('urls').value.split('\n').filter(u => u.trim() !== '');
         const keywords = document.getElementById('keywords').value.split('\n').filter(k => k.trim() !== '');
         const rssSites = document.getElementById('rssSites').value.split('\n').filter(r => r.trim() !== '');
-        const category = document.getElementById('category').value;
-        const logBox = document.getElementById('logBox');
+        
+        // --- NEW CATEGORY LOGIC ---
+        // Grab all checked boxes, map their values into an array, and join them with a comma
+        const checkedBoxes = document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]:checked');
+        const categoryArray = Array.from(checkedBoxes).map(cb => cb.value);
+        const categoryString = categoryArray.join(','); 
+        // --------------------------
+
         const btn = document.getElementById('pingBtn');
+        const pContainer = document.getElementById('progressContainer');
+        const pBar = document.getElementById('progressBar');
+        const pText = document.getElementById('progressText');
 
         if (urls.length === 0 || rssSites.length === 0) {
-            alert("Please provide at least one URL and one RSS submission site.");
+            alert("Please provide at least one URL and one RSS site.");
             return;
         }
 
-        logBox.innerHTML = '<strong>Process Started...</strong><br>';
+        let totalPings = urls.length * rssSites.length;
+        let completedPings = 0;
+
+        document.getElementById('logBox').innerHTML = ''; 
+        logHistory = []; 
+        addToLog('<strong>🚀 Process Started...</strong>');
+        
         btn.disabled = true;
         btn.innerText = "Pinging in progress...";
+        pContainer.style.display = 'block';
+        pText.style.display = 'block';
 
         for (let url of urls) {
             const keyword = keywords.length > 0 ? keywords[Math.floor(Math.random() * keywords.length)] : "Ping";
 
             for (let site of rssSites) {
-                let siteUrl = site.trim();
-                let cleanUrl = url.trim();
-                let cleanKeyword = keyword.trim();
+                let siteUrl = site.trim(); let cleanUrl = url.trim(); let cleanKeyword = keyword.trim();
 
                 try {
-                    // Detect if the submission URL is likely an RPC endpoint
                     if (siteUrl.toLowerCase().includes('rpc') || siteUrl.toLowerCase().includes('xml')) {
-                        
-                        // Construct XML-RPC Payload (weblogUpdates.ping standard)
-                        const xmlPayload = `<?xml version="1.0"?>
-<methodCall>
-  <methodName>weblogUpdates.ping</methodName>
-  <params>
-    <param><value>${cleanKeyword}</value></param>
-    <param><value>${cleanUrl}</value></param>
-  </params>
-</methodCall>`;
-
-                        // Send POST request for RPC
-                        await fetch(siteUrl, { 
-                            method: 'POST',
-                            mode: 'no-cors', 
-                            headers: { 'Content-Type': 'text/plain' }, // text/plain prevents CORS preflight block
-                            body: xmlPayload
-                        });
-                        
-                        logBox.innerHTML += `<span class="log-rpc">✅ RPC Ping Sent to: ${siteUrl}</span><br>`;
-
+                        // Note: XML-RPC weblogUpdates.ping doesn't natively accept category arguments in the standard 2-parameter call, 
+                        // so categoryString is only passed to Standard links below.
+                        const xmlPayload = `<?xml version="1.0"?>\n<methodCall>\n  <methodName>weblogUpdates.ping</methodName>\n  <params>\n    <param><value>${cleanKeyword}</value></param>\n    <param><value>${cleanUrl}</value></param>\n  </params>\n</methodCall>`;
+                        await fetch(siteUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: xmlPayload });
+                        addToLog(`<span class="log-rpc">✅ RPC Ping: ${siteUrl}</span>`, `SUCCESS (RPC): ${siteUrl} -> ${cleanUrl}`);
                     } else {
-                        // Send GET request for Standard URLs
-                        const targetUrl = `${siteUrl}?title=${encodeURIComponent(cleanKeyword)}&url=${encodeURIComponent(cleanUrl)}&category=${encodeURIComponent(category)}`;
-                        
+                        // Standard GET link handles the combined category string here
+                        const targetUrl = `${siteUrl}?title=${encodeURIComponent(cleanKeyword)}&url=${encodeURIComponent(cleanUrl)}&category=${encodeURIComponent(categoryString)}`;
                         await fetch(targetUrl, { mode: 'no-cors' });
-                        logBox.innerHTML += `<span class="log-std">✅ Standard Ping Sent to: ${siteUrl}</span><br>`;
+                        addToLog(`<span class="log-std">✅ Standard Ping: ${siteUrl}</span>`, `SUCCESS (STD): ${siteUrl} -> ${cleanUrl}`);
                     }
-
                 } catch (error) {
-                    logBox.innerHTML += `<span class="log-error">❌ Failed to ping: ${siteUrl} - ${error.message}</span><br>`;
+                    addToLog(`<span class="log-error">❌ Failed: ${siteUrl}</span>`, `ERROR: ${siteUrl} -> ${error.message}`);
                 }
                 
-                logBox.scrollTop = logBox.scrollHeight;
-                await sleep(500); // 500ms throttle
+                completedPings++;
+                let percentage = (completedPings / totalPings) * 100;
+                pBar.style.width = percentage + '%';
+                pText.innerText = `${completedPings} / ${totalPings} Completed (${Math.round(percentage)}%)`;
+                
+                await sleep(400); 
             }
         }
 
-        logBox.innerHTML += '<br><strong>All Pings Completed!</strong>';
+        addToLog('<br><strong>🎉 All Pings Completed!</strong>');
         btn.disabled = false;
-        btn.innerText = "Start Pinging";
+        btn.innerText = "🚀 Start Bulk Pinging";
     }
 </script>
 
